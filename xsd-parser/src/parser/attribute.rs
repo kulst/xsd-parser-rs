@@ -1,9 +1,13 @@
 use roxmltree::Node;
 
+use crate::parser::constants::attribute;
 use crate::parser::node_parser::parse_node;
 use crate::parser::types::{Alias, RsEntity, Struct, StructField, StructFieldSource, TypeModifier};
 use crate::parser::utils::get_documentation;
 use crate::parser::xsd_elements::{ElementType, UseType, XsdNode};
+
+const SUPPORTED_CONTENT_TYPES: [ElementType; 1] =
+    [ElementType::SimpleType];
 
 pub fn parse_attribute(node: &Node, parent: &Node) -> RsEntity {
     if parent.xsd_type() == ElementType::Schema {
@@ -15,24 +19,49 @@ pub fn parse_attribute(node: &Node, parent: &Node) -> RsEntity {
         .or_else(|| node.attr_ref())
         .expect("All attributes have name or ref")
         .to_string();
-
-    let type_name = node
-        .attr_type()
-        .or_else(|| node.attr_ref())
-        .unwrap_or("String")
-        .to_string();
-
+    
     let type_modifier = match node.attr_use() {
         UseType::Optional => TypeModifier::Option,
         UseType::Prohibited => TypeModifier::Empty,
         UseType::Required => TypeModifier::None,
     };
 
+    if node.has_attribute(attribute::TYPE) || node.has_attribute(attribute::REF) {
+        let type_name = node
+            .attr_type()
+            .unwrap_or_else(|| node.attr_ref().unwrap_or("String"))
+            .to_string();
+
+        return RsEntity::StructField(StructField {
+            type_name,
+            comment: get_documentation(node),
+            subtypes: vec![],
+            name,
+            source: StructFieldSource::Attribute,
+            type_modifiers: vec![type_modifier],
+        });
+    }
+
+    let content_node = node
+        .children()
+        .filter(|n| SUPPORTED_CONTENT_TYPES.contains(&n.xsd_type()))
+        .last()
+        .unwrap_or_else(|| {
+        panic!(
+            "Must have content if no 'type' or 'ref' attribute: {:?}",
+            node
+        )
+    });
+
+    let mut field_type = parse_node(&content_node, node);
+    field_type.set_name(format!("{}Type", name).as_str());
+
+
     RsEntity::StructField(StructField {
-        type_name,
-        comment: get_documentation(node),
-        subtypes: vec![],
         name,
+        type_name: field_type.name().to_string(),
+        comment: get_documentation(node),
+        subtypes: vec![field_type],
         source: StructFieldSource::Attribute,
         type_modifiers: vec![type_modifier],
     })

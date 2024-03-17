@@ -52,7 +52,7 @@ impl Struct {
                 types
                     .get(&key)
                     .map(|s| s.fields.borrow().clone())
-                    .unwrap_or_else(Vec::new)
+                    .unwrap_or_default()
             })
             .filter(|f| {
                 //TODO: remove this workaround for fields names clash
@@ -87,7 +87,7 @@ impl Struct {
                 types
                     .get(&key)
                     .map(|s| s.fields.borrow().clone())
-                    .unwrap_or_else(Vec::new)
+                    .unwrap_or_default()
             })
             .collect::<Vec<StructField>>();
 
@@ -116,19 +116,14 @@ impl StructField {
 }
 
 #[allow(clippy::upper_case_acronyms)]
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub enum StructFieldSource {
     Attribute,
     Element,
     Base,
     Choice,
+    #[default]
     NA,
-}
-
-impl Default for StructFieldSource {
-    fn default() -> Self {
-        StructFieldSource::NA
-    }
 }
 
 #[derive(Debug, Clone)]
@@ -158,18 +153,13 @@ pub struct Enum {
 }
 
 #[allow(clippy::upper_case_acronyms)]
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Default)]
 pub enum EnumSource {
     Restriction,
     Choice,
     Union,
+    #[default]
     NA,
-}
-
-impl Default for EnumSource {
-    fn default() -> Self {
-        EnumSource::NA
-    }
 }
 
 #[derive(Debug, Clone, PartialEq)]
